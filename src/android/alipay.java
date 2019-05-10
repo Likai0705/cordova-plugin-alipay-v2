@@ -135,14 +135,12 @@ public class alipay extends CordovaPlugin {
                     if (TextUtils.equals(resultStatus, "9000") && TextUtils.equals(authResult.getResultCode(), "200")) {
                         // 获取alipay_open_id，调支付时作为参数extern_token 的value
                         // 传入，则支付账户为该授权账户
-                        Toast.makeText(cordova.getActivity(),
-                                "授权成功\n" + String.format("authCode:%s", authResult.getAuthCode()), Toast.LENGTH_SHORT)
-                                .show();
+                        // String.format("authCode:%s", authResult.getAuthCode())
+                        Toast.makeText(cordova.getActivity(), "授权成功", Toast.LENGTH_SHORT).show();
                     } else {
                         // 其他状态值则为授权失败
-                        Toast.makeText(cordova.getActivity(),
-                                "授权失败" + String.format("authCode:%s", authResult.getAuthCode()), Toast.LENGTH_SHORT).show();
-
+                        // String.format("authCode:%s", authResult.getAuthCode())
+                        Toast.makeText(cordova.getActivity(), "授权失败", Toast.LENGTH_SHORT).show();
                     }
                     break;
 				}
