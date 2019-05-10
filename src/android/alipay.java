@@ -8,6 +8,7 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import com.alipay.sdk.app.PayTask;
+import com.alipay.sdk.app.AuthTask;
 
 import android.os.Handler;
 import android.os.Message;
@@ -25,12 +26,18 @@ import android.annotation.SuppressLint;
 public class alipay extends CordovaPlugin {
 
     private static final int SDK_PAY_FLAG = 1;
+    private static final int SDK_AUTH_FLAG = 2;
+
 
     @Override
     public boolean execute(String action, JSONArray args, CallbackContext callbackContext) throws JSONException {
         if (action.equals("payment")) {
             String orderInfo = args.getString(0);
             this.payment(orderInfo, callbackContext);
+            return true;
+        } else if (action.equals("login")) {
+            String loginInfo = args.getString(0);
+            this.auth(loginInfo, callbackContext);
             return true;
         }
         return false;
@@ -66,6 +73,33 @@ public class alipay extends CordovaPlugin {
         });
 
     }
+    private void auth(String loginInfo, final CallbackContext callbackContext) {
+
+        final String authInfo = loginInfo;
+        cordova.getThreadPool().execute(new Runnable() {
+            @Override
+            public void run() {
+                AuthTask authTask = new AuthTask(cordova.getActivity());
+                Map<String, String> result = authTask.authV2(authInfo, true);
+              
+                Message msg = new Message();
+                msg.what = SDK_AUTH_FLAG;
+                msg.obj = result;
+                mHandler.sendMessage(msg);
+
+                AuthResult authResult = new AuthResult(result, true);
+                // String resultInfo = authResult.getResult();// 同步返回需要验证的信息
+                String resultStatus = authResult.getResultStatus();
+                // 判断resultStatus 为9000则代表支付成功
+                if (TextUtils.equals(resultStatus, "9000") && TextUtils.equals(authResult.getResultCode(), "200")) {
+                    callbackContext.success(new JSONObject(result));
+                } else {
+                    callbackContext.error(new JSONObject(result));
+                }
+            }
+        });
+
+    }
 
     @SuppressLint("HandlerLeak")
     private Handler mHandler = new Handler() {
@@ -91,6 +125,27 @@ public class alipay extends CordovaPlugin {
                     }
                     break;
                 }
+				case SDK_AUTH_FLAG: {
+					@SuppressWarnings("unchecked")
+                    AuthResult authResult = new AuthResult((Map<String, String>) msg.obj, true);
+                    String resultStatus = authResult.getResultStatus();
+
+                    // 判断resultStatus 为“9000”且result_code
+                    // 为“200”则代表授权成功，具体状态码代表含义可参考授权接口文档
+                    if (TextUtils.equals(resultStatus, "9000") && TextUtils.equals(authResult.getResultCode(), "200")) {
+                        // 获取alipay_open_id，调支付时作为参数extern_token 的value
+                        // 传入，则支付账户为该授权账户
+                        Toast.makeText(cordova.getActivity(),
+                                "授权成功\n" + String.format("authCode:%s", authResult.getAuthCode()), Toast.LENGTH_SHORT)
+                                .show();
+                    } else {
+                        // 其他状态值则为授权失败
+                        Toast.makeText(cordova.getActivity(),
+                                "授权失败" + String.format("authCode:%s", authResult.getAuthCode()), Toast.LENGTH_SHORT).show();
+
+                    }
+                    break;
+				}
                 default:
                     break;
             }
